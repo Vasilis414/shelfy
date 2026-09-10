@@ -1,0 +1,290 @@
+@model Shelfy.Models.OpacViewModel
+
+@{
+    ViewData["Title"] = "Catalog";
+}
+
+<style>
+    .dashboard-topbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-topbar .page-button {
+        min-width: 120px;
+    }
+
+    .page-button.active {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+
+    .dashboard-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        background: #fff;
+        box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.04);
+    }
+
+    .dashboard-card table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .dashboard-card table th,
+    .dashboard-card table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .dashboard-card table th {
+        background: #f8f9fa;
+        text-align: left;
+    }
+
+    .book-cover-preview {
+        width: 100%;
+        max-height: 360px;
+        object-fit: contain;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        background: #f8f9fa;
+    }
+
+    .book-cover-placeholder {
+        min-height: 260px;
+        border: 1px dashed #adb5bd;
+        border-radius: 0.5rem;
+        background: #f8f9fa;
+    }
+</style>
+
+<div class="dashboard-topbar">
+    <a class="btn btn-primary page-button active" asp-controller="Home" asp-action="OPAC">Catalog</a>
+</div>
+
+@if (ViewBag.TotalFines != null && ViewBag.TotalFines > 0)
+{
+<div class="dashboard-card mb-4" style="color:red;background: white; border-color: red;">
+    <h2>IMPORTANT</h2>
+    <a style="color:red;">Your account has active fines, you can not borrow new or return fined books until paid. Please navigate to the account tab to pay your fines!</a>
+</div>
+}
+
+<div class="dashboard-card mb-4">
+    <h2>Online Public Access Catalog</h2>
+    <p class="text-muted mb-0">Search the available collection and review your borrow history.</p>
+</div>
+
+<div class="dashboard-card mb-4">
+    <h3>Search Books</h3>
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input id="opacBookSearch" type="text" class="form-control" placeholder="Search books by title, author, ISBN, or publisher..." oninput="filterOpacBooksTable()" />
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table id="opacBooksTable">
+            <thead>
+                <tr>
+                    <th>Book ID</th>
+                    <th>ISBN</th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Publisher</th>
+                    <th>Quantity</th>
+                    <th>Available</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Books != null && Model.Books.Count > 0)
+                {
+                    foreach (var book in Model.Books)
+                    {
+                        var coverPath = book.Media.FirstOrDefault()?.Path ?? string.Empty;
+                        <tr>
+                            <td>@book.BookId</td>
+                            <td>@book.Isbn</td>
+                            <td>@book.Title</td>
+                            <td>@book.Author</td>
+                            <td>@book.Publisher</td>
+                            <td>@book.Quantity</td>
+                            <td>@book.Available</td>
+                            <td>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary view-book-button"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#bookDetailsModal"
+                                        data-book-id="@book.BookId"
+                                        data-isbn="@book.Isbn"
+                                        data-title="@book.Title"
+                                        data-author="@book.Author"
+                                        data-publisher="@book.Publisher"
+                                        data-quantity="@book.Quantity"
+                                        data-available="@book.Available"
+                                        data-description="@book.Description"
+                                        data-cover-path="@coverPath">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No books available.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <h3>Your Borrow History</h3>
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input id="opacBorrowSearch" type="text" class="form-control" placeholder="Search your borrow history..." oninput="filterOpacBorrowHistoryTable()" />
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table id="opacBorrowHistoryTable">
+            <thead>
+                <tr>
+                    <th>Borrow ID</th>
+                    <th>Book ID</th>
+                    <th>Status</th>
+                    <th>Borrowed At</th>
+                    <th>Return Date</th>
+                    <th>Actual Return</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.BorrowHistory != null && Model.BorrowHistory.Count > 0)
+                {
+                    foreach (var borrow in Model.BorrowHistory)
+                    {
+                        <tr>
+                            <td>@borrow.BorrowId</td>
+                            <td>@borrow.BookId</td>
+                            <td>@borrow.StatusText</td>
+                            <td>@borrow.BorrowedAt.ToString("yyyy-MM-dd")</td>
+                            <td>@(borrow.BorrowReturnDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                            <td>@(borrow.ActualReturn?.ToString("yyyy-MM-dd") ?? "-")</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No borrow history found.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="bookDetailsModal" tabindex="-1" aria-labelledby="bookDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bookDetailsModalLabel">Book Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <img id="bookDetailsCover" class="book-cover-preview d-none" src="" alt="" />
+                        <div id="bookDetailsCoverPlaceholder" class="book-cover-placeholder d-flex align-items-center justify-content-center text-muted">
+                            No cover image
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Book ID</dt>
+                            <dd class="col-sm-8" id="bookDetailsId"></dd>
+
+                            <dt class="col-sm-4">ISBN</dt>
+                            <dd class="col-sm-8" id="bookDetailsIsbn"></dd>
+
+                            <dt class="col-sm-4">Title</dt>
+                            <dd class="col-sm-8" id="bookDetailsTitle"></dd>
+
+                            <dt class="col-sm-4">Author</dt>
+                            <dd class="col-sm-8" id="bookDetailsAuthor"></dd>
+
+                            <dt class="col-sm-4">Publisher</dt>
+                            <dd class="col-sm-8" id="bookDetailsPublisher"></dd>
+
+                            <dt class="col-sm-4">Quantity</dt>
+                            <dd class="col-sm-8" id="bookDetailsQuantity"></dd>
+
+                            <dt class="col-sm-4">Available</dt>
+                            <dd class="col-sm-8" id="bookDetailsAvailable"></dd>
+
+                            <dt class="col-sm-4">Description</dt>
+                            <dd class="col-sm-8" id="bookDetailsDescription"></dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function filterOpacBooksTable() {
+            const query = document.getElementById('opacBookSearch').value.toLowerCase();
+            document.querySelectorAll('#opacBooksTable tbody tr').forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function filterOpacBorrowHistoryTable() {
+            const query = document.getElementById('opacBorrowSearch').value.toLowerCase();
+            document.querySelectorAll('#opacBorrowHistoryTable tbody tr').forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        document.querySelectorAll('.view-book-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const coverPath = button.dataset.coverPath;
+                const cover = document.getElementById('bookDetailsCover');
+                const placeholder = document.getElementById('bookDetailsCoverPlaceholder');
+
+                document.getElementById('bookDetailsModalLabel').innerText = button.dataset.title || 'Book Details';
+                document.getElementById('bookDetailsId').innerText = button.dataset.bookId || '-';
+                document.getElementById('bookDetailsIsbn').innerText = button.dataset.isbn || '-';
+                document.getElementById('bookDetailsTitle').innerText = button.dataset.title || '-';
+                document.getElementById('bookDetailsAuthor').innerText = button.dataset.author || '-';
+                document.getElementById('bookDetailsPublisher').innerText = button.dataset.publisher || '-';
+                document.getElementById('bookDetailsQuantity').innerText = button.dataset.quantity || '0';
+                document.getElementById('bookDetailsAvailable').innerText = button.dataset.available || '0';
+                document.getElementById('bookDetailsDescription').innerText = button.dataset.description || 'No description available.';
+                if (coverPath) {
+                    cover.src = coverPath;
+                    cover.alt = `${button.dataset.title || 'Book'} cover`;
+                    cover.classList.remove('d-none');
+                    placeholder.classList.add('d-none');
+                } else {
+                    cover.removeAttribute('src');
+                    cover.alt = '';
+                    cover.classList.add('d-none');
+                    placeholder.classList.remove('d-none');
+                }
+            });
+        });
+
+    </script>
+}

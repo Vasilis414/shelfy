@@ -1,0 +1,97 @@
+@model AccountInfoViewModel
+
+@{
+    ViewData["Title"] = "Account Information";
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+    <div class="d-flex align-items-center gap-3">
+        <img src="~/shelfy.png" alt="Shelfy logo" style="height:56px;width:auto;" />
+        <div>
+            <h2 class="mb-1">Account Information</h2>
+            <p class="text-muted mb-0">Your Shelfy profile details.</p>
+        </div>
+    </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+    <dl class="row mb-0">
+        <dt class="col-sm-3">User ID</dt>
+        <dd class="col-sm-9">@Model.UserId</dd>
+
+        <dt class="col-sm-3">Username</dt>
+        <dd class="col-sm-9">@Model.Username</dd>
+
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@Model.Email</dd>
+
+        <dt class="col-sm-3">Role</dt>
+        <dd class="col-sm-9">@Model.Role</dd>
+    </dl>
+
+    <hr />
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+            <h6 class="mb-0">Two-Factor Authentication (2FA)</h6>
+            <p class="text-muted small mb-0">Enhance your security by requiring an email code during login.</p>
+        </div>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="twoFactorToggle" 
+                   style="width: 2.5rem; height: 1.25rem; cursor: pointer;"
+                   @(Model.TwoFactorAuth ? "checked" : "") onchange="toggleTwoFactor(this)">
+        </div>
+    </div>  
+        @if (Model.TotalFines > 0)
+        {
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div>
+            <h5 style="color:red;" class="mb-0">Active Fines</h5>
+            <p class="text-muted small mb-0">Your total fines are: €@Model.TotalFines.ToString("0.00") and must be paid!</p>
+        </div>
+        <a href="/Account/FinePayment" class="btn btn-danger">Pay Fines</a>
+    </div>
+        }   
+    </div>
+</div>
+
+<script>
+    function toggleTwoFactor(checkbox) {
+        const isEnabled = checkbox.checked;
+        
+        fetch('/Account/ToggleTwoFactor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `enabled=${isEnabled}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Security Updated',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            } else {
+                checkbox.checked = !isEnabled;
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Update Failed',
+                    text: data.message
+                });
+            }
+        })
+        .catch(() => {
+            checkbox.checked = !isEnabled;
+            Swal.fire({
+                icon: 'error',
+                title: 'Connection Error',
+                text: 'Could not reach the server.'
+            });
+        });
+    }
+</script>

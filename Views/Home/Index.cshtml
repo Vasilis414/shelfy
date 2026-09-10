@@ -1,0 +1,210 @@
+﻿@model Shelfy.Models.DashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<style>
+    .dashboard-topbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-topbar .page-button {
+        min-width: 120px;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+
+    .dashboard-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        background: #fff;
+        box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.04);
+    }
+
+    .dashboard-card h2 {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+
+    .dashboard-card .summary-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .summary-card {
+        border: 1px solid #e9ecef;
+        border-radius: 0.75rem;
+        padding: 1rem;
+        background: #f8f9fa;
+    }
+
+    .summary-card h3 {
+        margin-bottom: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .dashboard-card table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .dashboard-card table th,
+    .dashboard-card table td {
+        padding: 0.65rem 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .dashboard-card table th {
+        background: #f8f9fa;
+        text-align: left;
+    }
+</style>
+
+<div class="dashboard-topbar">
+    <a class="btn btn-primary page-button active" asp-controller="Home" asp-action="Index">Dashboard</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Books">Books</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Borrows">Borrows</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Members">Members</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="FineRules">Fine Rules</a>
+</div>
+
+<div class="dashboard-grid">
+    <section class="dashboard-card">
+        <h2>System Summary</h2>
+        <div class="dashboard-card summary-grid">
+            <div class="summary-card">
+                <h3>Total Books</h3>
+                <strong>@Model.TotalBooks</strong>
+            </div>
+            <div class="summary-card">
+                <h3>Total Members</h3>
+                <strong>@Model.TotalMembers</strong>
+            </div>
+            <div class="summary-card">
+                <h3>Active Borrows</h3>
+                <strong>@Model.ActiveBorrows</strong>
+            </div>
+            <div class="summary-card">
+                <h3>Overdue Borrows</h3>
+                <strong>@Model.OverdueBorrows</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="dashboard-card">
+        <h2>Recent Overdue Records</h2>
+        <p class="text-muted">The latest overdue borrow records from the database.</p>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Borrow ID</th>
+                        <th>User ID</th>
+                        <th>Book ID</th>
+                        <th>Status</th>
+                        <th>Fine</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.OverdueBorrowRecords.Any())
+                    {
+                        foreach (var borrow in Model.OverdueBorrowRecords)
+                        {
+                            <tr>
+                                <td>@borrow.BorrowId</td>
+                                <td>@borrow.UserId</td>
+                                <td>@borrow.BookId</td>
+                                <td>@borrow.StatusText</td>
+                                <td>@borrow.Fine</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No overdue borrow records found.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="dashboard-card">
+        <h2>Quick Actions</h2>
+        <p class="text-muted">Jump directly to main management pages.</p>
+        <div class="d-grid gap-2">
+            <a class="btn btn-primary" asp-controller="Home" asp-action="Books">Manage Books</a>
+            <a class="btn btn-secondary" asp-controller="Home" asp-action="Borrows">Manage Borrows</a>
+            <a class="btn btn-outline-primary" asp-controller="Home" asp-action="Members">Manage Members</a>
+        </div>
+    </section>
+
+    <section class="dashboard-card">
+        <h2>Borrow Search</h2>
+        <p class="text-muted">Search for borrow records by ID, member, or book.</p>
+        <div class="mb-3">
+            <label class="form-label">Borrow ID</label>
+            <input id="searchBorrowId" class="form-control" placeholder="e.g. 123" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Member ID</label>
+            <input id="searchMemberId" class="form-control" placeholder="e.g. 5" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Book ID</label>
+            <input id="searchBookId" class="form-control" placeholder="e.g. 12" />
+        </div>
+        <button class="btn btn-primary" type="button" onclick="searchBorrow()">Search</button>
+        <div id="borrowSearchResults" class="mt-4"></div>
+    </section>
+</div>
+
+@section Scripts {
+    <script>
+        function searchBorrow() {
+            const borrowId = document.getElementById('searchBorrowId').value;
+            const memberId = document.getElementById('searchMemberId').value;
+            const bookId = document.getElementById('searchBookId').value;
+
+            const queryString = new URLSearchParams();
+            if (borrowId) queryString.append('borrowId', borrowId);
+            if (memberId) queryString.append('userId', memberId);
+            if (bookId) queryString.append('bookId', bookId);
+
+            fetch('/Home/SearchBorrow?' + queryString.toString())
+                .then(response => response.json())
+                .then(data => {
+                    const resultsContainer = document.getElementById('borrowSearchResults');
+                    if (!data.success || !data.results || data.results.length === 0) {
+                        resultsContainer.innerHTML = '<div class="alert alert-warning">No matching borrow records were found.</div>';
+                        return;
+                    }
+
+                    let html = '<div class="table-responsive"><table class="table table-bordered"><thead><tr>' +
+                               '<th>Borrow ID</th><th>User ID</th><th>Book ID</th><th>Status</th><th>Borrowed At</th><th>Return Date</th><th>Actual Return</th></tr></thead><tbody>';
+
+                    data.results.forEach(item => {
+                        html += `<tr><td>${item.borrowId}</td><td>${item.userId}</td><td>${item.bookId}</td><td>${item.statusText}</td><td>${item.borrowedAt || '-'}</td><td>${item.borrowReturnDate || '-'}</td><td>${item.actualReturn || '-'}</td></tr>`;
+                    });
+
+                    html += '</tbody></table></div>';
+                    resultsContainer.innerHTML = html;
+                })
+                .catch(error => {
+                    document.getElementById('borrowSearchResults').innerHTML = '<div class="alert alert-danger">Search failed. Please try again.</div>';
+                    console.error(error);
+                });
+        }
+    </script>
+}

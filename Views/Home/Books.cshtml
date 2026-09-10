@@ -1,0 +1,471 @@
+@model List<Shelfy.Models.Book>
+@using Shelfy.Models
+
+@{
+    ViewData["Title"] = "Books";
+}
+
+<style>
+    .dashboard-topbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-topbar .page-button {
+        min-width: 120px;
+    }
+
+    .page-button.active {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+
+    .dashboard-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        background: #fff;
+        box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.04);
+    }
+
+    .dashboard-card table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .dashboard-card table th,
+    .dashboard-card table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .dashboard-card table th {
+        background: #f8f9fa;
+        text-align: left;
+    }
+</style>
+
+<div class="dashboard-topbar">
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Index">Dashboard</a>
+    <a class="btn btn-primary page-button active" asp-controller="Home" asp-action="Books">Books</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Borrows">Borrows</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Members">Members</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="FineRules">Fine Rules</a>
+</div>
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>Books</h2>
+            <p class="text-muted mb-0">Manage book inventory. This page will show all available books in the system.</p>
+        </div>
+        <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#addBookModal">Add New Book</button>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <h2>Books</h2>
+    <p class="text-muted">Manage book inventory. This page will show all available books in the system.</p>
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input id="bookSearch" type="text" class="form-control" placeholder="Search books..." oninput="filterBooksTable()" />
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Book ID</th>
+                    <th>ISBN</th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Publisher</th>
+                    <th>Quantity</th>
+                    <th>Available</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Count > 0)
+                {
+                    @foreach (var book in Model)
+                    {
+                        <tr>
+                            <td>@book.BookId</td>
+                            <td>@book.Isbn</td>
+                            <td>@book.Title</td>
+                            <td>@book.Author</td>
+                            <td>@book.Publisher</td>
+                            <td>@book.Quantity</td>
+                            <td>@book.Available</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" type="button"
+                                    onclick="viewBook(this)"
+                                    data-bookid="@book.BookId"
+                                    data-isbn="@book.Isbn"
+                                    data-title="@book.Title"
+                                    data-author="@book.Author"
+                                    data-publisher="@book.Publisher"
+                                    data-quantity="@book.Quantity"
+                                    data-available="@book.Available"
+                                    data-description="@book.Description"
+                                    data-notes="@book.Notes"
+                                    data-finerule="@book.BookFineRule">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No books found</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="viewBookModal" tabindex="-1" aria-labelledby="viewBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewBookModalLabel">Book Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Book ID:</strong> <span id="viewBookId"></span></p>
+                <p><strong>ISBN:</strong> <span id="viewBookIsbn"></span></p>
+                <p><strong>Title:</strong> <span id="viewBookTitle"></span></p>
+                <p><strong>Author:</strong> <span id="viewBookAuthor"></span></p>
+                <p><strong>Publisher:</strong> <span id="viewBookPublisher"></span></p>
+                <p><strong>Quantity:</strong> <span id="viewBookQuantity"></span></p>
+                <p><strong>Available:</strong> <span id="viewBookAvailable"></span></p>
+                <p><strong>Description:</strong> <span id="viewBookDescription"></span></p>
+                <p><strong>Default Fine Rule ID:</strong> <span id="viewBookFineRule"></span></p>
+                <p><strong>Admin Notes:</strong> <span id="viewBookNotes" class="text-danger"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="openEditBook()">Edit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function viewBook(button) {
+        const bookId = button.dataset.bookid;
+        const isbn = button.dataset.isbn;
+        const title = button.dataset.title;
+        const author = button.dataset.author;
+        const publisher = button.dataset.publisher;
+        const quantity = button.dataset.quantity;
+        const available = button.dataset.available;
+        const description = button.dataset.description;
+        const notes = button.dataset.notes;
+
+        document.getElementById('viewBookId').innerText = bookId;
+        document.getElementById('viewBookIsbn').innerText = isbn;
+        document.getElementById('viewBookTitle').innerText = title;
+        document.getElementById('viewBookAuthor').innerText = author;
+        document.getElementById('viewBookPublisher').innerText = publisher;
+        document.getElementById('viewBookQuantity').innerText = quantity;
+        document.getElementById('viewBookAvailable').innerText = available;
+        document.getElementById('viewBookFineRule').innerText = button.dataset.finerule || "-";
+        document.getElementById('viewBookDescription').innerText = description || "No description provided.";
+        document.getElementById('viewBookNotes').innerText = notes || "No admin notes.";
+
+        document.getElementById('editBookId').value = bookId;
+        document.getElementById('editBookIsbn').value = isbn;
+        document.getElementById('editBookTitle').value = title;
+        document.getElementById('editBookAuthor').value = author;
+        document.getElementById('editBookPublisher').value = publisher;
+        document.getElementById('editBookQuantity').value = quantity;
+        document.getElementById('editBookFineRule').value = button.dataset.finerule || "";
+        document.getElementById('editBookDescription').value = description || "";
+        document.getElementById('editBookNotes').value = notes || "";
+        var modal = new bootstrap.Modal(document.getElementById('viewBookModal'));
+        modal.show();
+    }
+
+    function openEditBook() {
+        bootstrap.Modal.getInstance(document.getElementById('viewBookModal')).hide();
+        var editModal = new bootstrap.Modal(document.getElementById('editBookModal'));
+        editModal.show();
+    }
+
+    function submitEditBook() {
+        const bookId = document.getElementById('editBookId').value;
+        const isbn = document.getElementById('editBookIsbn').value;
+        const title = document.getElementById('editBookTitle').value;
+        const author = document.getElementById('editBookAuthor').value;
+        const publisher = document.getElementById('editBookPublisher').value;
+        const quantity = document.getElementById('editBookQuantity').value;
+        const bookFineRule = document.getElementById('editBookFineRule').value;
+        const description = document.getElementById('editBookDescription').value;
+        const notes = document.getElementById('editBookNotes').value;
+
+        if (!isbn || !title || !author || !quantity) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Required Fields',
+                text: 'Please fill in all required fields'
+            });
+            return;
+        }
+
+        fetch('/Home/EditBook', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `bookId=${bookId}&isbn=${encodeURIComponent(isbn)}&title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&publisher=${encodeURIComponent(publisher)}&quantity=${quantity}&description=${encodeURIComponent(description)}&notes=${encodeURIComponent(notes)}&bookFineRule=${bookFineRule}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: data.message
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Update Failed',
+                    text: data.message
+                });
+            }
+        });
+    }
+
+    function filterBooksTable() {
+        const query = document.getElementById('bookSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('table tbody tr');
+
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+</script>
+
+<div class="modal fade" id="editBookModal" tabindex="-1" aria-labelledby="editBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editBookModalLabel">Edit Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editBookId" />
+                <div class="mb-3">
+                    <label class="form-label">ISBN</label>
+                    <input class="form-control" id="editBookIsbn" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input class="form-control" id="editBookTitle" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Author</label>
+                    <input class="form-control" id="editBookAuthor" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Publisher</label>
+                    <input class="form-control" id="editBookPublisher" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" class="form-control" id="editBookQuantity" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Default Fine Rule</label>
+                    <select class="form-select" id="editBookFineRule">
+                        @{ var editRules = ViewBag.FineRules as List<Shelfy.Models.FineRule>; }
+                        @if (editRules != null)
+                        {
+                            foreach(var rule in editRules)
+                            {
+                                <option value="@rule.RuleId">@rule.Title (€@rule.Fee / @rule.FeeInterval day(s))</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="editBookDescription" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Admin Notes</label>
+                    <textarea class="form-control" id="editBookNotes" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditBook()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addBookModal" tabindex="-1" aria-labelledby="addBookModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addBookModalLabel">Add New Book</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBookForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">ISBN</label>
+                            <input class="form-control" id="bookIsbn" placeholder="e.g. 978-0132350884" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Title</label>
+                            <input class="form-control" id="bookTitle" placeholder="e.g. The Pragmatic Programmer" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Author</label>
+                            <input class="form-control" id="bookAuthor" placeholder="e.g. Andy Hunt" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Publisher</label>
+                            <input class="form-control" id="bookPublisher" placeholder="e.g. Pragmatic Bookshelf" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="bookQuantity" placeholder="e.g. 5" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Fine Rule</label>
+                            <select class="form-select" id="bookFineRule">
+                                @{ var addRules = ViewBag.FineRules as List<Shelfy.Models.FineRule>; }
+                                @if (addRules != null)
+                                {
+                                    foreach(var rule in addRules)
+                                    {
+                                        <option value="@rule.RuleId">@rule.Title (€@rule.Fee / @rule.FeeInterval day(s))</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="bookDescription" rows="3" placeholder="Public book description..."></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Admin Notes</label>
+                            <textarea class="form-control" id="bookNotes" rows="2" placeholder="Private internal notes..."></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Cover Image</label>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">Upload File</label>
+                                    <input type="file" class="form-control" id="bookCoverFile" accept=".jpg,.jpeg,.png,.gif" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">Or Provide URL</label>
+                                    <input type="url" class="form-control" id="bookCoverUrl" placeholder="e.g. https://example.com/cover.jpg" />
+                                </div>
+                            </div>
+                            <small class="text-muted">Supported formats: JPG, PNG, GIF. Choose either upload or URL.</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddBook()">Save Book</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function submitAddBook() {
+        const isbn = document.getElementById('bookIsbn').value;
+        const title = document.getElementById('bookTitle').value;
+        const author = document.getElementById('bookAuthor').value;
+        const publisher = document.getElementById('bookPublisher').value;
+        const quantity = document.getElementById('bookQuantity').value;
+        const bookFineRule = document.getElementById('bookFineRule').value;
+        const description = document.getElementById('bookDescription').value;
+        const notes = document.getElementById('bookNotes').value;
+        const coverFile = document.getElementById('bookCoverFile').files[0];
+        const coverUrl = document.getElementById('bookCoverUrl').value;
+
+        if (!isbn || !title || !author || !quantity) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Missing Data',
+                text: 'Please fill in all required fields'
+            });
+            return;
+        }
+
+        if (!coverFile && !coverUrl) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Image Required',
+                text: 'Please upload a cover image or provide a URL'
+            });
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('isbn', isbn);
+        formData.append('title', title);
+        formData.append('author', author);
+        formData.append('publisher', publisher);
+        formData.append('quantity', quantity);
+        formData.append('bookFineRule', bookFineRule);
+        formData.append('description', description);
+        formData.append('notes', notes);
+        
+        if (coverFile) {
+            formData.append('coverFile', coverFile);
+        }
+        if (coverUrl) {
+            formData.append('coverUrl', coverUrl);
+        }
+
+        fetch('/Home/AddBook', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Book Added',
+                    text: data.message
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message + (data.error ? `: ${data.error}` : '')
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('Server Error', 'An unexpected error occurred while saving the book.', 'error');
+        });
+    }
+</script>

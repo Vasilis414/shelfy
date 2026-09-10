@@ -1,0 +1,517 @@
+@model List<Shelfy.Models.Borrow>
+@using Shelfy.Models
+
+@{
+    ViewData["Title"] = "Borrows";
+}
+
+<style>
+    .dashboard-topbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-topbar .page-button {
+        min-width: 120px;
+    }
+
+    .page-button.active {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+
+    .dashboard-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        background: #fff;
+        box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.04);
+    }
+
+    .dashboard-card table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .dashboard-card table th,
+    .dashboard-card table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .dashboard-card table th {
+        background: #f8f9fa;
+        text-align: left;
+    }
+</style>
+
+<div class="dashboard-topbar">
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Index">Dashboard</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Books">Books</a>
+    <a class="btn btn-primary page-button active" asp-controller="Home" asp-action="Borrows">Borrows</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Members">Members</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="FineRules">Fine Rules</a>
+</div>
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>Borrows</h2>
+            <p class="text-muted mb-0">List of current borrow transactions and their status.</p>
+        </div>
+        <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#addBorrowModal">Add New Borrow</button>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <h2>Borrows</h2>
+    <p class="text-muted">List of current borrow transactions and their status.</p>
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input id="borrowSearch" type="text" class="form-control" placeholder="Search borrows..." oninput="filterBorrowsTable()" />
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Borrow ID</th>
+                    <th>User ID</th>
+                    <th>Book ID</th>
+                    <th>Status</th>
+                    <th>Borrowed At</th>
+                    <th>Return Date</th>
+                    <th>Actual Return</th>
+                    <th>Fine Rule</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Count > 0)
+                {
+                    @foreach (var borrow in Model)
+                    {
+                        <tr>
+                            <td>@borrow.BorrowId</td>
+                            <td>@borrow.UserId</td>
+                            <td>@borrow.BookId</td>
+                            <td>
+                                @if (borrow.Status == 0) { <span class="badge bg-info">Active</span> }
+                                else if (borrow.Status == 1) { <span class="badge bg-success">Returned</span> }
+                                else if (borrow.Status == 2) { <span class="badge bg-danger">Overdue</span> }
+                                else if (borrow.Status == 3) { <span class="badge bg-warning text-dark">Late Return</span> }
+                            </td>
+                            <td>@borrow.BorrowedAt.ToString("yyyy-MM-dd")</td>
+                            <td>@(borrow.BorrowReturnDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                            <td>@(borrow.ActualReturn?.ToString("yyyy-MM-dd") ?? "-")</td>
+                            <td>
+                                @{
+                                    var fineRules = ViewBag.FineRules as List<Shelfy.Models.FineRule>;
+                                    var rule = fineRules?.FirstOrDefault(r => r.RuleId == borrow.BorrowRule);
+                                    if (rule != null)
+                                    {
+                                        <span>@rule.Title</span>
+                                    }
+                                    else
+                                    {
+                                        <span>N/A (@borrow.BorrowRule)</span>
+                                    }
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" type="button"
+                                    onclick="viewBorrow(@borrow.BorrowId, @borrow.UserId, @borrow.BookId, @borrow.Status, '@borrow.BorrowedAt.ToString("yyyy-MM-dd")', '@(borrow.BorrowReturnDate.HasValue ? borrow.BorrowReturnDate.Value.ToString("yyyy-MM-dd") : "")', '@(borrow.ActualReturn.HasValue ? borrow.ActualReturn.Value.ToString("yyyy-MM-dd") : "")', @borrow.BorrowRule)">
+                                    View
+                                </button>
+                                @if (!borrow.ActualReturn.HasValue)
+                                {
+                                    <button class="btn btn-sm btn-success" type="button" onclick="returnBorrow(@borrow.BorrowId)">
+                                        Return
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No borrow records found</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="viewBorrowModal" tabindex="-1" aria-labelledby="viewBorrowModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewBorrowModalLabel">Borrow Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Borrow ID:</strong> <span id="viewBorrowId"></span></p>
+                <p><strong>User ID:</strong> <span id="viewBorrowUserId"></span></p>
+                <p><strong>Book ID:</strong> <span id="viewBorrowBookId"></span></p>
+                <p><strong>Status:</strong> <span id="viewBorrowStatus"></span></p>
+                <p><strong>Borrowed At:</strong> <span id="viewBorrowDate"></span></p>
+                <p><strong>Return Date:</strong> <span id="viewBorrowReturnDate"></span></p>
+                <p><strong>Actual Return:</strong> <span id="viewBorrowActualReturn"></span></p>
+                <p><strong>Fine Rule:</strong> <span id="viewBorrowRule"></span></p>
+                <p><strong>Fine Calculated Until:</strong> <span id="viewFineCalculatedUntil"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="viewBorrowReturnButton" onclick="returnViewedBorrow()">Return</button>
+                <button type="button" class="btn btn-primary" onclick="openEditBorrow()">Edit</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const fineRulesLookup = {};
+    @{
+        var allFineRules = ViewBag.FineRules as List<Shelfy.Models.FineRule>;
+        if (allFineRules != null)
+        {
+            foreach (var rule in allFineRules)
+            {
+                @:fineRulesLookup[@rule.RuleId] = "@rule.Title (€@rule.Fee.ToString("0.00") / @rule.FeeInterval day(s))";
+            }
+        }
+    }
+
+    function viewBorrow(borrowId, userId, bookId, status, borrowedAt, borrowReturnDate, actualReturn, borrowRule, fineCalculatedUntil) {
+        document.getElementById('viewBorrowId').innerText = borrowId;
+        document.getElementById('viewBorrowUserId').innerText = userId;
+        document.getElementById('viewBorrowBookId').innerText = bookId;
+        var statusText = getBorrowStatusText(status);
+        document.getElementById('viewBorrowStatus').innerText = statusText;
+        document.getElementById('viewBorrowDate').innerText = borrowedAt || '-';
+        document.getElementById('viewBorrowReturnDate').innerText = borrowReturnDate || '-';
+        document.getElementById('viewBorrowActualReturn').innerText = actualReturn || '-';
+        document.getElementById('viewFineCalculatedUntil').innerText = fineCalculatedUntil || '-';
+        document.getElementById('viewBorrowRule').innerText = fineRulesLookup[borrowRule] || `N/A (${borrowRule})`;
+
+        document.getElementById('editBorrowId').value = borrowId;
+        document.getElementById('editBorrowUserId').value = userId;
+        document.getElementById('editBorrowBookId').value = bookId;
+        document.getElementById('editBorrowStatus').value = status;
+        document.getElementById('editBorrowDate').value = borrowedAt || '';
+        document.getElementById('editBorrowReturnDate').value = borrowReturnDate || '';
+        document.getElementById('editBorrowActualReturn').value = actualReturn || '';
+        document.getElementById('editBorrowRule').value = borrowRule;
+        document.getElementById('viewBorrowReturnButton').classList.toggle('d-none', actualReturn !== '');
+        updateEditBorrowStatus();
+
+        var modal = new bootstrap.Modal(document.getElementById('viewBorrowModal'));
+        modal.show();
+    }
+
+    function openEditBorrow() {
+        bootstrap.Modal.getInstance(document.getElementById('viewBorrowModal')).hide();
+        new bootstrap.Modal(document.getElementById('editBorrowModal')).show();
+    }
+
+    function submitEditBorrow() {
+        const borrowId = document.getElementById('editBorrowId').value;
+        const userId = document.getElementById('editBorrowUserId').value;
+        const bookId = document.getElementById('editBorrowBookId').value;
+        const status = document.getElementById('editBorrowStatus').value;
+        const borrowedAt = document.getElementById('editBorrowDate').value;
+        const borrowReturnDate = document.getElementById('editBorrowReturnDate').value;
+        const actualReturn = document.getElementById('editBorrowActualReturn').value;
+        const borrowRule = document.getElementById('editBorrowRule').value;
+
+        if (!userId || !bookId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Missing IDs',
+                text: 'Please fill in the required User and Book IDs'
+            });
+            return;
+        }
+
+        fetch('/Home/EditBorrow', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `borrowId=${borrowId}&userId=${userId}&bookId=${bookId}&status=${status}&borrowedAt=${encodeURIComponent(borrowedAt)}&borrowReturnDate=${encodeURIComponent(borrowReturnDate)}&actualReturn=${encodeURIComponent(actualReturn)}&borrowRule=${borrowRule}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Updated',
+                    text: data.message
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message
+                });
+            }
+        });
+    }
+
+    function returnBorrow(borrowId) {
+        Swal.fire({
+            title: 'Confirm Return',
+            text: "Mark this borrow as returned today?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#198754',
+            confirmButtonText: 'Yes, return it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch('/Home/ReturnBorrow', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `borrowId=${borrowId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('Returned!', data.message, 'success').then(() => location.reload());
+                    } else {
+                        Swal.fire('Failed', data.message, 'error');
+                    }
+                });
+            }
+        });
+    }
+
+    function returnViewedBorrow() {
+        returnBorrow(document.getElementById('editBorrowId').value);
+    }
+
+    function getBorrowStatusText(status) {
+        if (status === 0) return 'Active';
+        if (status === 1) return 'Returned';
+        if (status === 2) return 'Overdue';
+        if (status === 3) return 'Late Return';
+        return 'Unknown';
+    }
+
+    function calculateBorrowStatus(expectedReturnDate, actualReturnDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const expected = expectedReturnDate ? new Date(`${expectedReturnDate}T00:00:00`) : null;
+        const actual = actualReturnDate ? new Date(`${actualReturnDate}T00:00:00`) : null;
+
+        if (actual) {
+            return expected && actual > expected ? 3 : 1;
+        }
+
+        return expected && expected < today ? 2 : 0;
+    }
+
+    function updateEditBorrowStatus() {
+        const status = calculateBorrowStatus(
+            document.getElementById('editBorrowReturnDate').value,
+            document.getElementById('editBorrowActualReturn').value
+        );
+        document.getElementById('editBorrowStatus').value = status;
+    }
+
+    function updateAddBorrowStatus() {
+        const status = calculateBorrowStatus(
+            document.getElementById('borrowReturnDate').value,
+            document.getElementById('borrowActualReturn').value
+        );
+        document.getElementById('borrowStatus').value = status;
+    }
+
+    function filterBorrowsTable() {
+        const query = document.getElementById('borrowSearch').value.toLowerCase();
+        document.querySelectorAll('table tbody tr').forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+</script>
+
+<div class="modal fade" id="editBorrowModal" tabindex="-1" aria-labelledby="editBorrowModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editBorrowModalLabel">Edit Borrow</h5>
+                <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editBorrowId" />
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">User ID</label>
+                        <input type="number" class="form-control" id="editBorrowUserId" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Book ID</label>
+                        <input type="number" class="form-control" id="editBorrowBookId" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="editBorrowStatus">
+                            <option value="0">Active</option>
+                            <option value="1">Returned</option>
+                            <option value="2">Overdue</option>
+                            <option value="3">Late Return</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Borrowed At</label>
+                        <input type="date" class="form-control" id="editBorrowDate" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Return Date</label>
+                        <input type="date" class="form-control" id="editBorrowReturnDate" onchange="updateEditBorrowStatus()" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Actual Return</label>
+                        <input type="date" class="form-control" id="editBorrowActualReturn" onchange="updateEditBorrowStatus()" />
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Fine Rule</label>
+                        <select class="form-select" id="editBorrowRule">
+                            @{
+                                var editRules = ViewBag.FineRules as List<Shelfy.Models.FineRule>;
+                                if (editRules != null)
+                                {
+                                    foreach (var rule in editRules)
+                                    {
+                                        <option value="@rule.RuleId">@rule.Title (€@rule.Fee / @rule.FeeInterval day(s))</option>
+                                    }
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditBorrow()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addBorrowModal" tabindex="-1" aria-labelledby="addBorrowModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addBorrowModalLabel">Record New Borrow</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBorrowForm">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">User ID</label>
+                            <input type="number" class="form-control" id="borrowUserId" placeholder="e.g. 1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Book ID</label>
+                            <input type="number" class="form-control" id="borrowBookId" placeholder="e.g. 1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="borrowStatus">
+                                <option value="0">Active</option>
+                                <option value="1">Returned</option>
+                                <option value="2">Overdue</option>
+                                <option value="3">Late Return</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Borrowed At</label>
+                            <input type="datetime-local" class="form-control" id="borrowDate" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Return Date</label>
+                            <input type="date" class="form-control" id="borrowReturnDate" onchange="updateAddBorrowStatus()" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Actual Return</label>
+                            <input type="date" class="form-control" id="borrowActualReturn" onchange="updateAddBorrowStatus()" />
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Fine Rule</label>
+                            <select class="form-select" id="borrowRule">
+                                @{
+                                    var addRules = ViewBag.FineRules as List<Shelfy.Models.FineRule>;
+                                    if (addRules != null)
+                                    {
+                                        foreach (var rule in addRules)
+                                        {
+                                            <option value="@rule.RuleId">@rule.Title (€@rule.Fee / @rule.FeeInterval day(s))</option>
+                                        }
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddBorrow()">Save Borrow</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function submitAddBorrow() {
+        const userId = document.getElementById('borrowUserId').value;
+        const bookId = document.getElementById('borrowBookId').value;
+        const status = document.getElementById('borrowStatus').value;
+        const borrowRule = document.getElementById('borrowRule').value;
+
+        if (!userId || !bookId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Incomplete Form',
+                text: 'Please fill in all required fields'
+            });
+            return;
+        }
+
+        const borrowedAt = document.getElementById('borrowDate').value;
+        const borrowReturnDate = document.getElementById('borrowReturnDate').value;
+        const actualReturn = document.getElementById('borrowActualReturn').value;
+
+        fetch('/Home/AddBorrow', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `userId=${userId}&bookId=${bookId}&status=${status}&borrowedAt=${encodeURIComponent(borrowedAt)}&borrowReturnDate=${encodeURIComponent(borrowReturnDate)}&actualReturn=${encodeURIComponent(actualReturn)}&borrowRule=${borrowRule}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Recorded',
+                    text: data.message
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+</script>

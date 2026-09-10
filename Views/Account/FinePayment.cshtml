@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body{
+    background:#071327;
+}
+
+.glass{
+    background:linear-gradient(
+        135deg,
+        rgba(35,50,75,.95),
+        rgba(22,32,53,.95)
+    );
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+
+.input-dark{
+    background:#475266;
+    border:1px solid rgba(255,255,255,.05);
+    color:white;
+}
+
+.input-dark::placeholder{
+    color:#9ca3af;
+}
+
+.input-dark:focus{
+    outline:none;
+    border-color:#3b82f6;
+}
+
+.pay-btn{
+    background:#2f6bff;
+    transition:.2s;
+}
+
+.pay-btn:hover{
+    background:#2563eb;
+}
+
+.summary-line{
+    border-top:1px solid rgba(255,255,255,.08);
+}
+</style>
+</head>
+
+<body class="min-h-screen text-white">
+
+<div class="max-w-6xl mx-auto px-6 py-10">
+
+    <h1 class="text-4xl font-semibold mb-10">
+        Fines Payment 
+    </h1>
+    <h5 class="text-2xl font-semibold mb-10">
+        This is a demo please do not enter CC details just click pay now
+    </h5>
+
+    <div class="grid lg:grid-cols-[1.3fr_0.9fr] gap-12">
+
+        <div class="glass rounded-xl p-8">
+
+            <div class="grid md:grid-cols-2 gap-6">
+
+                <div>
+                    <label class="block mb-3 text-sm font-medium">
+                        Full name (as displayed on card)*
+                    </label>
+
+                    <input
+                        type="text"
+                        placeholder="Bonnie Green"
+                        class="input-dark w-full rounded-lg px-4 py-3"
+                    >
+                </div>
+
+                <div>
+                    <label class="block mb-3 text-sm font-medium">
+                        Card number*
+                    </label>
+
+                    <input
+                        type="text"
+                        placeholder="xxxx-xxxx-xxxx-xxxx"
+                        class="input-dark w-full rounded-lg px-4 py-3"
+                    >
+                </div>
+
+                <div>
+                    <label class="block mb-3 text-sm font-medium">
+                        Card expiration*
+                    </label>
+
+                    <input
+                        type="text"
+                        placeholder="12/23"
+                        class="input-dark w-full rounded-lg px-4 py-3"
+                    >
+                </div>
+
+                <div>
+                    <label class="block mb-3 text-sm font-medium">
+                        CVV*
+                    </label>
+
+                    <input
+                        type="text"
+                        placeholder="•••"
+                        class="input-dark w-full rounded-lg px-4 py-3"
+                    >
+                </div>
+
+            </div>
+
+            <button
+                onclick="processMockPayment()"
+                class="pay-btn mt-8 w-full rounded-lg py-3 font-medium"
+            >
+                Pay now
+            </button>
+
+        </div>
+
+        <div>
+
+            <div class="glass rounded-xl p-8">
+
+                <div class="space-y-5 text-lg">
+
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Original price</span>
+                        <span>€@ViewBag.TotalFines.ToString("0.00")</span>
+                    </div>
+
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Tax</span>
+                        <span>€@ViewBag.Tax.ToString("0.00")</span>
+                    </div>
+
+                    <div class="summary-line pt-5 flex justify-between text-2xl font-semibold">
+                        <span>Total</span>
+                        <span>€@ViewBag.GrandTotal.ToString("0.00")</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="flex justify-center gap-10 mt-8 opacity-80">
+
+                <img
+                    src="https://flowbite.s3.amazonaws.com/blocks/e-commerce/brand-logos/paypal-dark.svg"
+                    class="h-9"
+                    alt="PayPal"
+                >
+
+                <img
+                    src="https://flowbite.s3.amazonaws.com/blocks/e-commerce/brand-logos/visa-dark.svg"
+                    class="h-9"
+                    alt="Visa"
+                >
+
+                <img
+                    src="https://flowbite.s3.amazonaws.com/blocks/e-commerce/brand-logos/mastercard-dark.svg"
+                    class="h-9"
+                    alt="Mastercard"
+                >
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="mt-10 text-gray-400 text-lg">
+        Payment processed by
+        <a href="#" class="text-blue-400 hover:underline">
+            Shelfy
+        </a>
+
+        - Bank of Shelfy
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function processMockPayment() {
+        Swal.fire({
+            title: 'Processing Payment',
+            text: 'Please wait while we verify your transaction...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        fetch('/Account/ProcessPayment', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire('Success!', data.message, 'success').then(() => {
+                    window.location.href = '/Account/Info';
+                });
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        })
+        .catch(() => Swal.fire('Error', 'A server error occurred.', 'error'));
+    }
+</script>
+
+</body>
+</html>

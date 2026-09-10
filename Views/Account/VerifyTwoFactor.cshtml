@@ -1,0 +1,33 @@
+@model TwoFactorViewModel
+
+@{
+    ViewData["Title"] = "Two-Factor Verification";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <img src="~/shelfy.png" alt="Shelfy logo" style="height:52px;width:auto;" />
+                </div>
+                <h2 class="h4">Two-Factor Verification</h2>
+                <p class="text-muted">Enter the 6-digit code sent to your email.</p>
+
+                <form asp-action="VerifyTwoFactor" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <div class="form-group mb-3">
+                        <label asp-for="Code"></label>
+                        <input asp-for="Code" class="form-control" autocomplete="one-time-code" />
+                        <span asp-validation-for="Code" class="text-danger"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Verify</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

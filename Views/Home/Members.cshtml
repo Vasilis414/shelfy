@@ -1,0 +1,347 @@
+@model List<Shelfy.Models.User>
+
+@{
+    ViewData["Title"] = "Members";
+    var currentAdminLevel = Context.Session.GetInt32("AdminLevel") ?? 0;
+}
+
+<style>
+    .dashboard-topbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-topbar .page-button {
+        min-width: 120px;
+    }
+
+    .page-button.active {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+
+    .dashboard-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        background: #fff;
+        box-shadow: 0 0.4rem 1rem rgba(0, 0, 0, 0.04);
+    }
+
+    .dashboard-card table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .dashboard-card table th,
+    .dashboard-card table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .dashboard-card table th {
+        background: #f8f9fa;
+        text-align: left;
+    }
+</style>
+
+<div class="dashboard-topbar">
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Index">Dashboard</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Books">Books</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="Borrows">Borrows</a>
+    <a class="btn btn-primary page-button active" asp-controller="Home" asp-action="Members">Members</a>
+    <a class="btn btn-outline-primary page-button" asp-controller="Home" asp-action="FineRules">Fine Rules</a>
+</div>
+
+<div class="dashboard-card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>Members</h2>
+            <p class="text-muted mb-0">Member directory and status overview.</p>
+        </div>
+        <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#addMemberModal">Add New Member</button>
+    </div>
+</div>
+
+<div class="dashboard-card">
+    <h2>Members</h2>
+    <p class="text-muted">Member directory and status overview.</p>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input id="memberSearch" type="text" class="form-control" placeholder="Search members..." oninput="filterMembersTable()" />
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Admin</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Count > 0)
+                {
+                    @foreach (var user in Model)
+                    {
+                        <tr>
+                            <td>@user.UserId</td>
+                            <td>@user.Username</td>
+                            <td>@user.Email</td>
+                            <td>
+                                @if (user.Admin == 2) { <span class="badge bg-danger">Super Admin</span> }
+                                else if (user.Admin == 1) { <span class="badge bg-primary">Admin</span> }
+                                else { <span class="badge bg-secondary">Member</span> }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" type="button"
+                                    onclick="viewMember(this)"
+                                    data-userid="@user.UserId"
+                                    data-username="@user.Username"
+                                    data-email="@user.Email"
+                                    data-admin="@user.Admin">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">No users found</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="viewMemberModal" tabindex="-1" aria-labelledby="viewMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewMemberModalLabel">Member Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>User ID:</strong> <span id="viewMemberId"></span></p>
+                <p><strong>Username:</strong> <span id="viewMemberUsername"></span></p>
+                <p><strong>Email:</strong> <span id="viewMemberEmail"></span></p>
+                <p><strong>Admin:</strong> <span id="viewMemberAdmin"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="viewMemberEditButton" onclick="openEditMember()">Edit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function viewMember(button) {
+        const userId = button.dataset.userid;
+        const username = button.dataset.username;
+        const email = button.dataset.email;
+        const admin = Number(button.dataset.admin);
+
+        document.getElementById('viewMemberId').innerText = userId;
+        document.getElementById('viewMemberUsername').innerText = username;
+        document.getElementById('viewMemberEmail').innerText = email;
+        document.getElementById('viewMemberAdmin').innerText = admin > 0 ? (admin === 2 ? 'Super Admin (2)' : 'Admin (1)') : 'No';
+        document.getElementById('editMemberId').value = userId;
+        document.getElementById('editMemberUsername').value = username;
+        document.getElementById('editMemberEmail').value = email;
+        document.getElementById('editMemberAdmin').value = admin;
+        document.getElementById('viewMemberEditButton').classList.toggle('d-none', @currentAdminLevel === 1 && admin > 0);
+        var modal = new bootstrap.Modal(document.getElementById('viewMemberModal'));
+        modal.show();
+    }
+
+    function openEditMember() {
+        bootstrap.Modal.getInstance(document.getElementById('viewMemberModal')).hide();
+        new bootstrap.Modal(document.getElementById('editMemberModal')).show();
+    }
+
+    function submitEditMember() {
+        const userId = document.getElementById('editMemberId').value;
+        const username = document.getElementById('editMemberUsername').value;
+        const email = document.getElementById('editMemberEmail').value;
+        const admin = document.getElementById('editMemberAdmin').value;
+
+        if (!username || !email) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Missing Information',
+                text: 'Please fill in the required fields'
+            });
+            return;
+        }
+
+        fetch('/Home/EditMember', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `userId=${userId}&username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&admin=${admin}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Updated',
+                    text: data.message
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Update Failed',
+                    text: data.message
+                });
+            }
+        });
+    }
+
+    function filterMembersTable() {
+        const query = document.getElementById('memberSearch').value.toLowerCase();
+        document.querySelectorAll('table tbody tr').forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+</script>
+
+<div class="modal fade" id="editMemberModal" tabindex="-1" aria-labelledby="editMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editMemberModalLabel">Edit Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editMemberId" />
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Username</label>
+                        <input class="form-control" id="editMemberUsername" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Email</label>
+                        <input class="form-control" id="editMemberEmail" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Admin</label>
+                        <select class="form-select" id="editMemberAdmin">
+                            <option value="0">No</option>
+                            @if (currentAdminLevel == 2)
+                            {
+                            <option value="1">Admin (1)</option>
+                            <option value="2">Super Admin (2)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditMember()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addMemberModal" tabindex="-1" aria-labelledby="addMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMemberModalLabel">Add New Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addMemberForm">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Username</label>
+                            <input class="form-control" id="memberUsername" placeholder="e.g. sarah_lee" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="memberEmail" placeholder="e.g. sarah.lee@example.com" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" id="memberPassword" placeholder="Enter password" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Admin</label>
+                            <select class="form-select" id="memberAdmin">
+                                <option value="0">No</option>
+                                <option value="1">Admin (1)</option>
+                                <option value="2">Super Admin (2)</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddMember()">Save Member</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function submitAddMember() {
+        const username = document.getElementById('memberUsername').value;
+        const email = document.getElementById('memberEmail').value;
+        const password = document.getElementById('memberPassword').value;
+        const admin = document.getElementById('memberAdmin').value;
+
+        if (!username || !email || !password) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Required Fields',
+                text: 'Please fill in all required fields'
+            });
+            return;
+        }
+
+        fetch('/Home/AddMember', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `username=${encodeURIComponent(username)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&admin=${admin}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Member Added',
+                    text: data.message
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => Swal.fire('Error', 'An unexpected error occurred.', 'error'));
+    }
+</script>
