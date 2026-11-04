@@ -10,7 +10,7 @@ Members can browse books, see their borrow history, pay demo fines and enable em
 - ASP.NET Core MVC and Razor views
 - MySQL with `MySqlConnector`
 - Entity Framework Core for the application context and model setup
-- Bootstrap, JavaScript and SweetAlert2
+- Bootstrap, JavaScript and SweetAlert2 
 
 ## Project structure
 
